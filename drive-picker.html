@@ -47,8 +47,17 @@
     }
 
     function redirectBack(paramsObj) {
-      var query = new URLSearchParams(paramsObj).toString();
-      window.location.href = REDIRECT_BASE + '?' + query;
+      // Built by hand rather than via `new URLSearchParams(paramsObj)` (the object-literal
+      // constructor form) — that form silently stringifies the whole object instead of
+      // building key=value pairs on some older Chrome builds (confirmed on Android 8/API 26),
+      // producing a redirect the app can't parse. encodeURIComponent works everywhere.
+      var parts = [];
+      for (var key in paramsObj) {
+        if (Object.prototype.hasOwnProperty.call(paramsObj, key)) {
+          parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(paramsObj[key]));
+        }
+      }
+      window.location.href = REDIRECT_BASE + '?' + parts.join('&');
     }
 
     function createPicker() {
