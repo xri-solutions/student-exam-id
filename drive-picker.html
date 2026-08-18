@@ -67,23 +67,31 @@
         return;
       }
 
-      // setEnableTeamDrives + Feature.SUPPORT_TEAM_DRIVES are the real (if oddly-named — this
-      // predates Google's "Shared Drives" rebrand) switches for including Shared Drives at all.
-      // The nav sidebar (left unhidden here, unlike an earlier version of this page) is where
-      // "Shared drives" appears as its own browsable category — hiding it left operators dropped
-      // straight into "Shared with me" (individually-shared folders), never seeing the org's
-      // actual Shared Drives.
-      var foldersView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+      // A single addView() with no parent set defaults to a flattened "everything you have
+      // access to" listing (in practice: individually-shared folders), not a proper root browse
+      // — so Shared Drives never appeared no matter what was enabled on that one view. Adding a
+      // second, distinctly-labeled view is what makes Picker's nav sidebar appear at all, giving
+      // the operator an explicit "Shared drives" section to switch into.
+      var myDriveView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setParent('root')
+        .setMode(google.picker.DocsViewMode.LIST)
+        .setLabel('My Drive');
+
+      var sharedDrivesView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setEnableTeamDrives(true)
-        .setMode(google.picker.DocsViewMode.LIST);
+        .setMode(google.picker.DocsViewMode.LIST)
+        .setLabel('Shared Drives');
 
       var picker = new google.picker.PickerBuilder()
         .enableFeature(google.picker.Feature.SUPPORT_TEAM_DRIVES)
         .setOAuthToken(accessToken)
         .setDeveloperKey(API_KEY)
-        .addView(foldersView)
+        .addView(myDriveView)
+        .addView(sharedDrivesView)
         .setCallback(pickerCallback)
         .build();
       showStatus('');
