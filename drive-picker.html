@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Choose Drive Folder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #1B2A4A;
+      color: #FFFFFF;
+      font-family: sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    #status { padding: 24px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading Drive folder picker&hellip;</div>
+
+  <script>
+    // Opened from the Exam Session Recorder app via Chrome Custom Tabs (not embedded in a
+    // WebView) — Google's Picker requires a real browser session to silently confirm identity
+    // alongside the OAuth token; a bare WebView has no session cookies and falls back to asking
+    // the operator to type their password from scratch, which we deliberately avoid.
+    //
+    // The app's own OAuth access token is passed via the URL fragment (never sent to any server,
+    // browser-local only — the same pattern classic OAuth "implicit flow" used) so this page
+    // never needs a backend of its own. The picked folder (or cancellation) is sent back to the
+    // app via a custom-scheme redirect the app's manifest intercepts.
+    var API_KEY = 'AIzaSyCfN9vqOx5x5xJuXDf3gjlukA8w3Mkqw6g'; // Picker widget key — public, not a secret
+    var REDIRECT_BASE = 'com.xri.examrecorder.picker://result';
+
+    function showStatus(text) {
+      document.getElementById('status').innerText = text;
+    }
+
+    function getAccessToken() {
+      var hash = window.location.hash.replace(/^#/, '');
+      var params = new URLSearchParams(hash);
+      return params.get('access_token');
+    }
+
+    function redirectBack(paramsObj) {
+      var query = new URLSearchParams(paramsObj).toString();
+      window.location.href = REDIRECT_BASE + '?' + query;
+    }
+
+    function createPicker() {
+      var accessToken = getAccessToken();
+      if (!accessToken) {
+        showStatus('Missing access token — open this page from the app.');
+        return;
+      }
+
+      var foldersView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMode(google.picker.DocsViewMode.LIST);
+
+      var picker = new google.picker.PickerBuilder()
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .addView(foldersView)
+        .setCallback(pickerCallback)
+        .build();
+      showStatus('');
+      picker.setVisible(true);
+    }
+
+    function pickerCallback(data) {
+      if (data.action === google.picker.Action.PICKED) {
+        var doc = data.docs[0];
+        showStatus('Returning to the app…');
+        redirectBack({ folderId: doc.id, folderName: doc.name });
+      } else if (data.action === google.picker.Action.CANCEL) {
+        redirectBack({ cancelled: 'true' });
+      }
+    }
+
+    function onApiLoad() {
+      gapi.load('picker', { callback: createPicker });
+    }
+  </script>
+  <script async defer src="https://apis.google.com/js/api.js?onload=onApiLoad"></script>
+</body>
+</html>
