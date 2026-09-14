@@ -102,7 +102,15 @@
       if (data.action === google.picker.Action.PICKED) {
         var doc = data.docs[0];
         showStatus('Returning to the app…');
-        redirectBack({ folderId: doc.id, folderName: doc.name });
+        // Shared Drive folders reached via a share link (rather than direct membership) need
+        // this alongside the id for every later API call to find anything inside them — without
+        // it, Drive silently returns empty results instead of an error, even though the id alone
+        // is completely correct. Most items don't have one, hence the fallback to ''.
+        var params = { folderId: doc.id, folderName: doc.name };
+        if (doc.resourceKey) {
+          params.resourceKey = doc.resourceKey;
+        }
+        redirectBack(params);
       } else if (data.action === google.picker.Action.CANCEL) {
         redirectBack({ cancelled: 'true' });
       }
