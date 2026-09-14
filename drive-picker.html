@@ -34,6 +34,9 @@
     // never needs a backend of its own. The picked folder (or cancellation) is sent back to the
     // app via a custom-scheme redirect the app's manifest intercepts.
     var API_KEY = 'AIzaSyCfN9vqOx5x5xJuXDf3gjlukA8w3Mkqw6g'; // Picker widget key — public, not a secret
+    // The app's OAuth client id's leading numeric segment (public — the whole client id ships in
+    // the app itself, this is just the project number half of it) — required by setAppId() below.
+    var APP_ID = '654576988458';
     var REDIRECT_BASE = 'com.xri.examrecorder.picker://result';
 
     function showStatus(text) {
@@ -86,8 +89,14 @@
         .setMode(google.picker.DocsViewMode.LIST)
         .setLabel('Shared Drives');
 
+      // setAppId() is what actually registers this app's drive.file access grant on whatever gets
+      // picked below — without it, Picker still lets the operator browse and select a folder
+      // (that part only needs the browser's own Google session), but the app's own OAuth token
+      // is left with no real access to it: every later API call referencing that folder id 404s
+      // as "not found", even though the id is completely correct and the folder is visibly there.
       var picker = new google.picker.PickerBuilder()
         .enableFeature(google.picker.Feature.SUPPORT_TEAM_DRIVES)
+        .setAppId(APP_ID)
         .setOAuthToken(accessToken)
         .setDeveloperKey(API_KEY)
         .addView(myDriveView)
