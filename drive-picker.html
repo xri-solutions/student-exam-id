@@ -70,6 +70,16 @@
         return;
       }
 
+      var params = new URLSearchParams(window.location.search);
+      var parentId = params.get('parentId');
+      if (params.get('step') === 'auditfile' && parentId) {
+        createAuditFilePicker(accessToken, parentId);
+      } else {
+        createFolderPicker(accessToken);
+      }
+    }
+
+    function createFolderPicker(accessToken) {
       // A single addView() with no parent set defaults to a flattened "everything you have
       // access to" listing (in practice: individually-shared folders), not a proper root browse
       // — so Shared Drives never appeared no matter what was enabled on that one view. Adding a
@@ -101,13 +111,13 @@
         .setDeveloperKey(API_KEY)
         .addView(myDriveView)
         .addView(sharedDrivesView)
-        .setCallback(pickerCallback)
+        .setCallback(function(data) { folderPickerCallback(data); })
         .build();
       showStatus('');
       picker.setVisible(true);
     }
 
-    function pickerCallback(data) {
+    function folderPickerCallback(data) {
       if (data.action === google.picker.Action.PICKED) {
         var doc = data.docs[0];
         showStatus('Returning to the app…');
@@ -122,6 +132,43 @@
         redirectBack(params);
       } else if (data.action === google.picker.Action.CANCEL) {
         redirectBack({ cancelled: 'true' });
+      }
+    }
+
+    // A folder grant from createFolderPicker() above doesn't extend to files other devices put in
+    // that folder before this one ever touched it — confirmed by direct testing, see
+    // DriveApiClient's class doc in the app repo. The only thing that reliably grants this device
+    // real access to a specific pre-existing file is the operator explicitly picking that exact
+    // file here. setParent() + a CSV mime filter narrows this to (in practice) just the shared
+    // audit_log.csv, so there's normally exactly one thing to select.
+    function createAuditFilePicker(accessToken, parentId) {
+      var auditView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setParent(parentId)
+        .setIncludeFolders(false)
+        .setMimeTypes('text/csv')
+        .setMode(google.picker.DocsViewMode.LIST)
+        .setLabel('Audit Log');
+
+      var picker = new google.picker.PickerBuilder()
+        .enableFeature(google.picker.Feature.SUPPORT_TEAM_DRIVES)
+        .setTitle('Select audit_log.csv to enable shared status on this tablet')
+        .setAppId(APP_ID)
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .addView(auditView)
+        .setCallback(function(data) { auditFilePickerCallback(data); })
+        .build();
+      showStatus('');
+      picker.setVisible(true);
+    }
+
+    function auditFilePickerCallback(data) {
+      if (data.action === google.picker.Action.PICKED) {
+        var doc = data.docs[0];
+        showStatus('Returning to the app…');
+        redirectBack({ step: 'auditfile', fileId: doc.id, fileName: doc.name });
+      } else if (data.action === google.picker.Action.CANCEL) {
+        redirectBack({ step: 'auditfile', cancelled: 'true' });
       }
     }
 
